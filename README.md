@@ -21,7 +21,7 @@ A fully serverless web application built with AWS to track sales and inventory f
 - Sales analytics dashboard with bar chart by location (Chart.js)
 - Inventory tracker with GPS timestamp logging and recent restocks
 - Clean, mobile-friendly UI with red branding matching my company logo
-
+- Improved Recent Restocks section with collapsible date groups for better readability
 ## Tech Stack
 - **Frontend**: HTML, CSS, JavaScript, Chart.js
 - **Hosting**: Amazon S3 + CloudFront (HTTPS + custom domain)
