@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MD Refreshments - Upload PayRange CSV</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            text-align: center;
+            padding: 50px;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: auto;
+        }
+        .logo-container {
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 300px;
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        h2 {
+            margin-bottom: 25px;
+            color: #d32f2f;
+        }
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #d32f2f;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #b71c1c;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            line-height: 1.6;
+            min-height: 24px;
+        }
+        .success { color: green; }
+        .error   { color: red; }
+        .recent-box {
+            margin-top: 25px;
+            padding: 15px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .recent-item {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .recent-item:last-child {
+            border-bottom: none;
+        }
+        .nav-links {
+            margin: 25px 0;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+        .nav-button {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #d32f2f;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 18px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .nav-button:hover {
+            background-color: #b71c1c;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="logo-container">
+        <img src="logo1-1.jpg" alt="MD Refreshments Logo" class="logo">
+    </div>
+    
+    <h2>Upload PayRange CSV Report</h2>
+    <input type="file" id="fileInput" accept=".csv">
+    <br><br>
+    <button onclick="uploadFile()">Upload CSV</button>
+
+    <!-- Navigation links to dashboard and inventory -->
+    <div class="nav-links">
+        <a href="dashboard.html" class="nav-button">Sales Analytics Dashboard</a>
+        <a href="inventory.html" class="nav-button">Inventory Tracker</a>
+    </div>
+
+    <p id="status"></p>
+    
+    <div id="recentBox" class="recent-box" style="display:none;">
+        <strong>Recent Uploads (last 5):</strong><br>
+        <div id="recentList"></div>
+    </div>
+</div>
+
+<script>
+async function uploadFile() {
+    const fileInput = document.getElementById("fileInput");
+    const status = document.getElementById("status");
+    const recentBox = document.getElementById("recentBox");
+    const recentList = document.getElementById("recentList");
+
+    status.textContent = "";
+    status.className = "";
+    recentBox.style.display = "none";
+    recentList.innerHTML = "";
+
+    if (!fileInput.files.length) {
+        status.textContent = "Please select a CSV file.";
+        status.className = "error";
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = async function(event) {
+        try {
+            const csvText = event.target.result;
+
+            const UPLOAD_URL = "https://cc4x8ok8s8.execute-api.us-east-1.amazonaws.com/dev/upload";
+
+            const uploadResponse = await fetch(UPLOAD_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain" },
+                body: csvText
+            });
+
+            if (!uploadResponse.ok) {
+                const errorText = await uploadResponse.text();
+                throw new Error(`Upload failed: ${errorText}`);
+            }
+
+            const uploadResult = await uploadResponse.json();
+            status.textContent = uploadResult.message || "Upload successful!";
+            status.className = "success";
+
+            const RESULTS_URL = "https://cc4x8ok8s8.execute-api.us-east-1.amazonaws.com/dev/results";
+            const resultsResponse = await fetch(RESULTS_URL, { method: "GET" });
+            if (!resultsResponse.ok) {
+                throw new Error("Failed to load recent uploads");
+            }
+
+            const results = await resultsResponse.json();
+
+            if (results.data && results.data.length > 0) {
+                recentBox.style.display = "block";
+                recentList.innerHTML = results.data.map(item => `
+                    <div class="recent-item">
+                        <strong>${item.location || 'Unknown Location'}</strong><br>
+                        Total Sales: $${parseFloat(item.total_sales || 0).toFixed(2)}<br>
+                        Uploaded: ${item.uploadedAt || 'N/A'}
+                    </div>
+                `).join('');
+            } else {
+                status.innerHTML += "<br>No recent uploads found yet.";
+            }
+
+        } catch (err) {
+            status.textContent = "Error: " + err.message;
+            status.className = "error";
+            console.error(err);
+        }
+    };
+
+    reader.readAsText(file);
+}
+</script>
+
+</body>
+</html>

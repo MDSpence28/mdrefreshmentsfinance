@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MD Refreshments - Sales Analytics Dashboard</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            text-align: center;
+            padding: 50px;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            max-width: 1000px;
+            margin: auto;
+        }
+        .logo-container {
+            margin-bottom: 30px;
+        }
+        .logo {
+            max-width: 300px;
+            width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #0073bb;
+            margin-bottom: 30px;
+        }
+        #summaryStats {
+            margin-bottom: 40px;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+        canvas {
+            max-width: 800px;
+            margin: 0 auto 40px auto;
+        }
+        a.back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #0073bb;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        a.back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="logo-container">
+        <img src="logo1-1.jpg" alt="MD Refreshments Logo" class="logo">
+    </div>
+    
+    <h1>Sales Analytics Dashboard</h1>
+    
+    <div id="summaryStats">Loading summary...</div>
+    
+    <canvas id="locationChart"></canvas>
+    
+    <a href="/" class="back-link">← Back to Upload Page</a>
+</div>
+
+<script>
+async function loadDashboard() {
+    try {
+        const SUMMARY_URL = "https://cc4x8ok8s8.execute-api.us-east-1.amazonaws.com/dev/summary";
+
+        const response = await fetch(SUMMARY_URL, { method: "GET" });
+        if (!response.ok) {
+            throw new Error(`Summary request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        document.getElementById("summaryStats").innerHTML = `
+            <strong>Total Sales:</strong> $${data.total_sales.toFixed(2)}<br>
+            <strong>Total Records:</strong> ${data.record_count}<br>
+            <strong>Average Mobile %:</strong> ${data.mobile_pct_avg.toFixed(2)}%
+        `;
+
+        // Bar chart: sales by location
+        const ctx = document.getElementById('locationChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(data.by_location),
+                datasets: [{
+                    label: 'Total Sales ($)',
+                    data: Object.values(data.by_location),
+                    backgroundColor: '#0073bb',
+                    borderColor: '#005f99',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Sales Amount ($)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Location'
+                        }
+                    }
+                },
+                responsive: true,
+                plugins: {
+                    legend: { display: true }
+                }
+            }
+        });
+
+    } catch (err) {
+        document.getElementById("summaryStats").innerHTML = 
+            "Error loading dashboard: " + err.message + 
+            "<br><small>Check if /summary route is deployed and Lambda has Scan permission.</small>";
+        console.error(err);
+    }
+}
+
+loadDashboard();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MD Refreshments - Inventory Tracker</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: auto;
+        }
+        .logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #d32f2f;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin: 15px 0 5px;
+            font-weight: bold;
+            text-align: left;
+        }
+        select, input[type="number"], input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #d32f2f;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #b71c1c;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .inventory-list {
+            margin-top: 30px;
+            text-align: left;
+        }
+        .entry {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        .back-link {
+            display: block;
+            margin-top: 30px;
+            color: #d32f2f;
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <img src="logo1-1.jpg" alt="MD Refreshments Logo" class="logo">
+    <h1>Inventory Tracker</h1>
+
+    <form id="restockForm">
+        <label for="location">Location</label>
+        <select id="location" required>
+            <option value="">Select Location</option>
+            <option value="G2 Warehouse">G2 Warehouse</option>
+            <option value="G4 Warehouse">G4 Warehouse</option>
+        </select>
+
+        <label for="machine">Machine</label>
+        <select id="machine" required>
+            <option value="">Select Machine</option>
+            <option value="G2 Soda">G2 Soda</option>
+            <option value="G2 Snack">G2 Snack</option>
+            <option value="G4 Soda">G4 Soda</option>
+            <option value="G4 Snack">G4 Snack</option>
+        </select>
+
+        <label for="product">Product (G4 Soda only for now)</label>
+        <select id="product" required>
+            <option value="">Select Product</option>
+            <option value="Sprite">Sprite</option>
+            <option value="Coke">Coke</option>
+            <option value="Orange Fanta">Orange Fanta</option>
+            <option value="Strawberry Fanta">Strawberry Fanta</option>
+            <option value="Ginger Ale">Ginger Ale</option>
+            <option value="Dr Pepper">Dr Pepper</option>
+            <option value="Mountain Dew">Mountain Dew</option>
+        </select>
+
+        <label for="amountAdded">Amount Added</label>
+        <input type="number" id="amountAdded" min="1" required placeholder="e.g. 24">
+
+        <label for="whoRestocked">Who Restocked</label>
+        <input type="text" id="whoRestocked" required placeholder="e.g. Marcus">
+
+        <label for="notes">Notes / Reason (optional)</label>
+        <textarea id="notes" rows="3" placeholder="e.g. Low stock alert"></textarea>
+
+        <button type="submit">Log Restock</button>
+    </form>
+
+    <p id="status"></p>
+
+    <div class="inventory-list">
+        <h3>Recent Restocks</h3>
+        <div id="inventoryList"></div>
+    </div>
+
+    <a href="/" class="back-link">← Back to Upload Page</a>
+</div>
+
+<script>
+const form = document.getElementById("restockForm");
+const status = document.getElementById("status");
+const inventoryList = document.getElementById("inventoryList");
+
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    status.textContent = "";
+    status.className = "";
+
+    const data = {
+        location: document.getElementById("location").value,
+        machine: document.getElementById("machine").value,
+        product: document.getElementById("product").value,
+        amountAdded: parseInt(document.getElementById("amountAdded").value),
+        whoRestocked: document.getElementById("whoRestocked").value,
+        notes: document.getElementById("notes").value
+    };
+
+    // Get GPS if available
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                data.latitude = position.coords.latitude;
+                data.longitude = position.coords.longitude;
+                submitRestock(data);
+            },
+            () => {
+                // GPS denied or unavailable
+                submitRestock(data);
+            }
+        );
+    } else {
+        submitRestock(data);
+    }
+});
+
+async function submitRestock(data) {
+    try {
+        const response = await fetch("https://cc4x8ok8s8.execute-api.us-east-1.amazonaws.com/dev/add-restock", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || "Failed to log restock");
+        }
+
+        status.textContent = "Restock logged successfully!";
+        status.className = "success";
+
+        form.reset();
+        loadInventory();
+
+    } catch (err) {
+        status.textContent = "Error: " + err.message;
+        status.className = "error";
+    }
+}
+
+async function loadInventory() {
+    try {
+        const response = await fetch("https://cc4x8ok8s8.execute-api.us-east-1.amazonaws.com/dev/inventory", {
+            method: "GET"
+        });
+
+        if (!response.ok) throw new Error("Failed to load inventory");
+
+        const entries = await response.json();
+
+        inventoryList.innerHTML = entries.map(entry => `
+            <div class="entry">
+                <strong>${entry.location} - ${entry.machine} - ${entry.product}</strong><br>
+                Added: ${entry.amountAdded} on ${new Date(entry.restockedAt).toLocaleString()}<br>
+                By: ${entry.whoRestocked}${entry.notes ? `<br>Notes: ${entry.notes}` : ''}<br>
+                ${entry.latitude ? `Location: ${entry.latitude.toFixed(4)}, ${entry.longitude.toFixed(4)}` : ''}
+            </div>
+        `).join('') || "<p>No restocks logged yet.</p>";
+
+    } catch (err) {
+        inventoryList.innerHTML = "<p>Error loading inventory: " + err.message + "</p>";
+    }
+}
+
+// Load recent restocks on page load
+loadInventory();
+</script>
+
+</body>
+</html>
